@@ -1,0 +1,14 @@
+.app-container { max-width: 800px; margin: 0 auto; padding: 20px; text-align: center; }
+.dropzone {
+    border: 2px dashed #007bff;
+    padding: 40px;
+    border-radius: 10px;
+    background: #f9f9f9;
+    cursor: pointer;
+    transition: 0.3s;
+}
+.dropzone.active { background: #e2efff; border-color: #0056b3; }
+.flashcards-grid { margin-top: 30px; display: grid; gap: 15px; }
+.card-item { border: 1px solid #ddd; padding: 15px; border-radius: 8px; text-align: left; background: white; }
+button { padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+button:disabled { background: #ccc; }
