@@ -121,3 +121,5 @@ Interfața folosește un design dark, cu accent pe contraste clare, carduri bine
 ## Notă
 
 Acest frontend depinde de un backend funcțional pentru autentificare, procesarea PDF-urilor și evaluarea răspunsurilor. Fără API-ul corespunzător, funcțiile principale nu vor putea fi folosite complet.
+
+Ultima actualizare: 2026-05-06.
