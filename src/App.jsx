@@ -16,11 +16,13 @@ function App() {
             // 2. Folosim funcția corectă importată
             const data = await generateFlashcards(file); 
             
-            // 3. Backend-ul tău returnează { "flashcards": [...] } 
+            console.log('📊 Date primite:', data);
+            
+            // 3. Backend-ul tău returnează { "filename": "...", "flashcards": [...] } 
             setFlashcards(data.flashcards || []); 
         } catch (error) {
             console.error("Eroare la procesare:", error);
-            alert("Eroare la comunicarea cu backend-ul!");
+            alert(`Eroare: ${error.response?.data?.detail || error.message || "Eroare necunoscută"}`);
         } finally {
             setLoading(false);
         }
