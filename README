@@ -1,1 +1,123 @@
-FRONTEND
+# NeuroDeck Frontend
+
+NeuroDeck Frontend este interfața web pentru o aplicație de învățare asistată de AI bazată pe flashcards. Utilizatorul se autentifică, încarcă unul sau mai multe fișiere PDF, generează întrebări de studiu și își evaluează răspunsurile direct în aplicație.
+
+## Ce face aplicația
+
+- autentificare și creare cont
+- încărcare simultană a mai multor PDF-uri prin drag and drop sau click
+- generare automată de flashcards pe baza documentelor încărcate
+- navigare card cu card în modul de studiu
+- salvarea răspunsurilor utilizatorului pentru fiecare întrebare
+- evaluare automată a răspunsurilor cu un scor și un verdict corect/incorect
+- afișarea unui ecran de rezultate cu scor mediu și comparație între răspunsul utilizatorului și răspunsul corect
+
+## Tehnologii folosite
+
+- React 18
+- Vite
+- Axios pentru cereri HTTP
+- react-dropzone pentru încărcarea fișierelor
+- CSS custom pentru layout și stilizare
+
+## Fluxul aplicației
+
+1. Utilizatorul se autentifică sau își creează cont.
+2. După login, ajunge în zona de upload.
+3. Alege unul sau mai multe fișiere PDF.
+4. Setează numărul de întrebări generate și severitatea evaluării.
+5. Aplicația trimite PDF-urile către backend și primește flashcards.
+6. Utilizatorul răspunde la întrebări în modul de studiu.
+7. La final, răspunsurile sunt evaluate și rezultatele sunt afișate într-un raport clar.
+
+## Structura proiectului
+
+- `src/main.jsx` pornește aplicația React.
+- `src/App.jsx` conține logica principală a fluxului de autentificare, upload, studiu și rezultate.
+- `src/components/dropzone.jsx` oferă zona de upload pentru PDF-uri.
+- `src/services/api.js` centralizează apelurile către backend.
+- `src/app.css` conține stilurile aplicației.
+
+## Cerințe
+
+- Node.js 18 sau mai nou
+- npm
+- un backend compatibil care rulează la `http://localhost:8000`
+
+## Instalare și rulare
+
+```bash
+npm install
+npm run dev
+```
+
+Aplicația Vite va porni, de regulă, la `http://localhost:5173`.
+
+## Scripturi disponibile
+
+- `npm run dev` pornește serverul de dezvoltare Vite
+- `npm run build` generează buildul de producție
+- `npm run preview` servește local buildul de producție
+- `npm run lint` verifică stilul codului cu ESLint
+
+## Integrarea cu backendul
+
+Frontendul comunică cu API-ul aflat la `http://localhost:8000` și folosește următoarele endpointuri:
+
+- `POST /login` pentru autentificare
+- `POST /users/` pentru înregistrare
+- `POST /upload` pentru trimiterea PDF-urilor și generarea de flashcards
+- `POST /evaluate` pentru evaluarea unui răspuns
+
+### Formatul așteptat
+
+- `login` și `register` trimit `email` și `password`
+- `upload` trimite un formular multipart cu câmpul `files` pentru PDF-uri și `numar_intrebari`
+- `evaluate` primește parametri în query pentru `raspuns_corect`, `raspuns_utilizator`, `severitate` și `intrebare_id`
+
+## Funcționalități detaliate
+
+### Autentificare
+
+Utilizatorul poate comuta între login și creare cont din aceeași interfață. După autentificare reușită, aplicația trece automat în pasul de upload.
+
+### Upload de PDF-uri
+
+Zona de upload acceptă fișiere PDF multiple. Fișierele adăugate sunt afișate în listă și pot fi eliminate individual înainte de generarea flashcards-urilor.
+
+### Generare de flashcards
+
+Aplicația trimite documentele încărcate către backend și primește o listă de carduri cu întrebări și răspunsuri. Dacă backendul nu returnează carduri, utilizatorul primește un mesaj de eroare.
+
+### Modul de studiu
+
+Fiecare card poate fi parcurs secvențial, cu butoane de navigare înainte și înapoi. Utilizatorul își scrie răspunsul într-un textarea, iar `Ctrl + Enter` duce la cardul următor.
+
+### Evaluare și rezultate
+
+La final, toate răspunsurile sunt evaluate. Ecranul de rezultate arată:
+
+- scorul mediu din 100
+- numărul de răspunsuri corecte
+- răspunsul utilizatorului pentru fiecare întrebare
+- răspunsul corect primit de la backend
+
+## Configurare locală
+
+Dacă backendul nu rulează pe `http://localhost:8000`, trebuie actualizată constanta `API_BASE_URL` din `src/services/api.js`.
+
+## Stil vizual
+
+Interfața folosește un design dark, cu accent pe contraste clare, carduri bine delimitate și un font modern. Fluxul este optimizat pentru claritate și pentru o experiență de studiu rapidă.
+
+## Posibile îmbunătățiri
+
+- memorarea progresului utilizatorului
+- suport pentru alte tipuri de documente
+- istoricul sesiunilor de studiu
+- exportul rezultatelor
+- setări mai avansate pentru evaluarea răspunsurilor
+
+## Notă
+
+Acest frontend depinde de un backend funcțional pentru autentificare, procesarea PDF-urilor și evaluarea răspunsurilor. Fără API-ul corespunzător, funcțiile principale nu vor putea fi folosite complet.
