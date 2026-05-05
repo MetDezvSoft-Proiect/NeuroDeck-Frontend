@@ -1,33 +1,60 @@
 import { useState } from 'react';
-import { generateFlashcards, evaluateAnswer } from './services/api';
+import { generateFlashcards, evaluateAnswer, loginUser, registerUser } from './services/api';
 import Dropzone from './components/Dropzone';
 import './App.css';
 
-// FAZELE aplicației
-// 'upload'   → drag & drop + buton generare
-// 'study'    → studentul tastează răspunsuri la fiecare card
-// 'results'  → scor final + răspunsurile corecte
-
 function App() {
-  const [phase, setPhase] = useState('upload');
-  const [file, setFile] = useState(null);
+  const [phase, setPhase] = useState('login'); 
+  
+  // Stări pentru Autentificare (Autentificare reală)
+  const [isLoginMode, setIsLoginMode] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [user, setUser] = useState(null);
+
+  // Stări pentru Documente (Acum e un Array de fișiere)
+  const [files, setFiles] = useState([]);
+  
   const [flashcards, setFlashcards] = useState([]);
-  const [answers, setAnswers] = useState({}); // { index: "raspuns scris" }
-  const [results, setResults] = useState([]);  // [{ card, raspuns_dat, scor, status }]
+  const [answers, setAnswers] = useState({});
+  const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState('');
   const [currentCard, setCurrentCard] = useState(0);
 
-  // ─── PASUL 1: Generare flashcards ───
-  const handleGenerate = async () => {
-    if (!file) return;
-    setLoading(true);
-    setLoadingMsg('AI-ul citește PDF-ul...');
+  // Setări Modificate
+  const [numarIntrebari, setNumarIntrebari] = useState(5);
+  const [severitate, setSeveritate] = useState(2);
+
+  // ─── LOGIN & REGISTER (CONECTAT LA BAZA DE DATE) ───
+  const handleAuth = async (e) => {
+    e.preventDefault();
     try {
-      const data = await generateFlashcards(file);
+      if (isLoginMode) {
+        const data = await loginUser(email, password);
+        setUser(data);
+        setPhase('upload'); 
+      } else {
+        await registerUser(email, password);
+        alert("Cont creat cu succes! Acum te poți autentifica.");
+        setIsLoginMode(true);
+        setPassword('');
+      }
+    } catch (err) {
+      alert(`Eroare: ${err.response?.data?.detail || err.message}`);
+    }
+  };
+
+  // ─── GENERARE FLASHCARDS MULTIPLE ───
+  const handleGenerate = async () => {
+    if (files.length === 0) return;
+    setLoading(true);
+    setLoadingMsg('AI-ul citește PDF-urile...');
+    try {
+      const data = await generateFlashcards(files, numarIntrebari);
       const cards = data.flashcards || [];
       if (cards.length === 0) {
-        alert('Nu s-au putut genera flashcards din acest PDF.');
+        alert('Nu s-au putut genera flashcards.');
         return;
       }
       setFlashcards(cards);
@@ -42,27 +69,20 @@ function App() {
     }
   };
 
-  // ─── PASUL 2: Navigare între carduri ───
-  const handleAnswerChange = (index, value) => {
-    setAnswers((prev) => ({ ...prev, [index]: value }));
+  // Eliminare un singur fișier din selecție
+  const removeFile = (indexToRemove) => {
+    setFiles((prev) => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
-  const goNext = () => {
-    if (currentCard < flashcards.length - 1) setCurrentCard((c) => c + 1);
-  };
+  const handleAnswerChange = (index, value) => setAnswers((prev) => ({ ...prev, [index]: value }));
+  const goNext = () => { if (currentCard < flashcards.length - 1) setCurrentCard((c) => c + 1); };
+  const goPrev = () => { if (currentCard > 0) setCurrentCard((c) => c - 1); };
 
-  const goPrev = () => {
-    if (currentCard > 0) setCurrentCard((c) => c - 1);
-  };
-
-  // ─── PASUL 3: Trimitere pentru evaluare ───
+  // ─── EVALUARE ───
   const handleSubmitAll = async () => {
-    // Verifică dacă toate cardurile au un răspuns
     const unanswered = flashcards.filter((_, i) => !answers[i]?.trim());
     if (unanswered.length > 0) {
-      const ok = window.confirm(
-        `Ai ${unanswered.length} card(uri) fără răspuns. Trimiți oricum?`
-      );
+      const ok = window.confirm(`Ai ${unanswered.length} card(uri) fără răspuns. Trimiți oricum?`);
       if (!ok) return;
     }
 
@@ -72,10 +92,8 @@ function App() {
     try {
       const evalPromises = flashcards.map((card, i) => {
         const raspusDat = answers[i]?.trim() || '';
-        if (!raspusDat) {
-          return Promise.resolve({ scor: 0, status: 'INCORECT' });
-        }
-        return evaluateAnswer(card.raspuns, raspusDat);
+        if (!raspusDat) return Promise.resolve({ scor: 0, status: 'INCORECT' });
+        return evaluateAnswer(card.raspuns, raspusDat, severitate);
       });
 
       const evalResults = await Promise.all(evalPromises);
@@ -97,62 +115,108 @@ function App() {
     }
   };
 
-  // ─── Calculare scor total ───
-  const scorMediu =
-    results.length > 0
-      ? Math.round(results.reduce((sum, r) => sum + r.scor, 0) / results.length)
-      : 0;
-
+  const scorMediu = results.length > 0 ? Math.round(results.reduce((sum, r) => sum + r.scor, 0) / results.length) : 0;
   const numarCorecte = results.filter((r) => r.status === 'CORECT').length;
 
-  // ─── Restart ───
   const handleRestart = () => {
     setPhase('upload');
-    setFile(null);
+    setFiles([]); // Golim array-ul de fișiere
     setFlashcards([]);
     setAnswers({});
     setResults([]);
     setCurrentCard(0);
   };
 
-  // ════════════════════════════════════════
-  //  RENDER
-  // ════════════════════════════════════════
   return (
     <div className="app-container">
-      {/* HEADER */}
       <header className="app-header">
         <h1 className="logo">Neuro<span>Deck</span> <span className="brain">🧠</span></h1>
-        <p className="tagline">Învață mai smart cu AI</p>
+        {user ? <p className="tagline">Salutare, {user.email}!</p> : <p className="tagline">Învață mai smart cu AI</p>}
       </header>
 
-      {/* ── FAZA: UPLOAD ── */}
+      {phase === 'login' && (
+        <section className="phase-login">
+          <form className="auth-form" onSubmit={handleAuth}>
+            <h2>{isLoginMode ? "Autentificare" : "Creează Cont"}</h2>
+            <p className="auth-subtitle">
+              {isLoginMode ? "Conectează-te pentru a-ți salva progresul" : "Introdu datele pentru a crea un cont nou"}
+            </p>
+            
+            <input 
+              type="email" placeholder="Email" required className="auth-input" 
+              value={email} onChange={e => setEmail(e.target.value)}
+            />
+            <input 
+              type="password" placeholder="Parolă" required className="auth-input" 
+              value={password} onChange={e => setPassword(e.target.value)}
+            />
+            
+            <button type="submit" className="btn-primary">
+              {isLoginMode ? "Intră în cont" : "Înregistrează-mă"}
+            </button>
+
+            <button 
+              type="button" 
+              onClick={() => setIsLoginMode(!isLoginMode)} 
+              style={{background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', marginTop: '10px'}}
+            >
+              {isLoginMode ? "Nu ai cont? Creează unul" : "Ai deja cont? Autentifică-te"}
+            </button>
+          </form>
+        </section>
+      )}
+
       {phase === 'upload' && (
         <section className="phase-upload">
-          <Dropzone onFileSelect={setFile} hasFile={!!file} />
+          {/* Trimitem și primim un ARRAY de documente */}
+          <Dropzone onFilesSelect={setFiles} files={files} />
 
-          {file && (
+          <div className="settings-panel">
+            <div className="setting-group">
+              <label>Număr întrebări generate:</label>
+              <input 
+                type="number" min="1" max="50" 
+                className="auth-input"
+                style={{ width: "120px", padding: "10px" }}
+                value={numarIntrebari} 
+                onChange={(e) => setNumarIntrebari(parseInt(e.target.value) || 1)} 
+              />
+            </div>
+
+            <div className="setting-group">
+              <label>Severitate evaluare AI:</label>
+              <select value={severitate} onChange={(e) => setSeveritate(parseInt(e.target.value))}>
+                <option value={1}>🟢 Blând (Ușor de trecut)</option>
+                <option value={2}>🟡 Normal (Echilibrat)</option>
+                <option value={3}>🔴 Sever (Doar detalii precise)</option>
+              </select>
+            </div>
+          </div>
+
+          {files.length > 0 && (
             <div className="file-selected">
-              <span className="file-name">📎 {file.name}</span>
-              <button
-                className="btn-primary"
-                onClick={handleGenerate}
-                disabled={loading}
-              >
+              {/* Afișăm Toate documentele cu buton de stergere individual */}
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                  {files.map((f, idx) => (
+                      <span key={idx} className="file-name" style={{display: 'flex', alignItems: 'center'}}>
+                          📎 {f.name} 
+                          <span 
+                              style={{cursor: 'pointer', marginLeft: '10px', color: 'var(--red)', fontWeight: 'bold'}} 
+                              onClick={() => removeFile(idx)}
+                          >✕</span>
+                      </span>
+                  ))}
+              </div>
+              <button className="btn-primary" onClick={handleGenerate} disabled={loading} style={{marginTop: '10px'}}>
                 {loading ? (
-                  <span className="btn-loading">
-                    <span className="spinner" /> {loadingMsg}
-                  </span>
-                ) : (
-                  '⚡ Generează Flashcards'
-                )}
+                  <span className="btn-loading"><span className="spinner" /> {loadingMsg}</span>
+                ) : ('⚡ Generează Flashcards din PDF-uri')}
               </button>
             </div>
           )}
         </section>
       )}
 
-      {/* ── FAZA: STUDY ── */}
       {phase === 'study' && (
         <section className="phase-study">
           <div className="study-header">
@@ -160,14 +224,10 @@ function App() {
               Card {currentCard + 1} din {flashcards.length}
             </span>
             <div className="progress-bar">
-              <div
-                className="progress-fill"
-                style={{ width: `${((currentCard + 1) / flashcards.length) * 100}%` }}
-              />
+              <div className="progress-fill" style={{ width: `${((currentCard + 1) / flashcards.length) * 100}%` }} />
             </div>
           </div>
 
-          {/* Card curent */}
           <div className="flashcard">
             <div className="card-question">
               <span className="card-label">Întrebare</span>
@@ -175,9 +235,7 @@ function App() {
             </div>
 
             <div className="card-answer-area">
-              <label className="card-label" htmlFor={`ans-${currentCard}`}>
-                Răspunsul tău
-              </label>
+              <label className="card-label" htmlFor={`ans-${currentCard}`}>Răspunsul tău</label>
               <textarea
                 id={`ans-${currentCard}`}
                 className="answer-input"
@@ -185,43 +243,24 @@ function App() {
                 placeholder="Scrie răspunsul aici..."
                 value={answers[currentCard] || ''}
                 onChange={(e) => handleAnswerChange(currentCard, e.target.value)}
-                onKeyDown={(e) => {
-                  // Ctrl+Enter → card următor
-                  if (e.key === 'Enter' && e.ctrlKey) goNext();
-                }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && e.ctrlKey) goNext(); }}
               />
               <p className="hint">Ctrl+Enter pentru card următor</p>
             </div>
           </div>
 
-          {/* Navigare */}
           <div className="nav-buttons">
-            <button className="btn-secondary" onClick={goPrev} disabled={currentCard === 0}>
-              ← Anterior
-            </button>
+            <button className="btn-secondary" onClick={goPrev} disabled={currentCard === 0}>← Anterior</button>
 
             {currentCard < flashcards.length - 1 ? (
-              <button className="btn-primary" onClick={goNext}>
-                Următor →
-              </button>
+              <button className="btn-primary" onClick={goNext}>Următor →</button>
             ) : (
-              <button
-                className="btn-submit"
-                onClick={handleSubmitAll}
-                disabled={loading}
-              >
-                {loading ? (
-                  <span className="btn-loading">
-                    <span className="spinner" /> {loadingMsg}
-                  </span>
-                ) : (
-                  '✅ Trimite și evaluează'
-                )}
+              <button className="btn-submit" onClick={handleSubmitAll} disabled={loading}>
+                {loading ? <span className="btn-loading"><span className="spinner" /> {loadingMsg}</span> : '✅ Trimite și evaluează'}
               </button>
             )}
           </div>
 
-          {/* Miniatură toate cardurile */}
           <div className="cards-dots">
             {flashcards.map((_, i) => (
               <button
@@ -235,50 +274,27 @@ function App() {
         </section>
       )}
 
-      {/* ── FAZA: RESULTS ── */}
       {phase === 'results' && (
         <section className="phase-results">
-          {/* Scor mare */}
           <div className="score-hero">
-            <div
-              className={`score-circle ${
-                scorMediu >= 70 ? 'score-good' : scorMediu >= 40 ? 'score-medium' : 'score-bad'
-              }`}
-            >
+            <div className={`score-circle ${scorMediu >= 70 ? 'score-good' : scorMediu >= 40 ? 'score-medium' : 'score-bad'}`}>
               <span className="score-number">{scorMediu}</span>
               <span className="score-label">/ 100</span>
             </div>
-            <h2>
-              {scorMediu >= 70
-                ? '🎉 Felicitări!'
-                : scorMediu >= 40
-                ? '📚 Mai exersează!'
-                : '💪 Nu te descuraja!'}
-            </h2>
-            <p className="score-summary">
-              Ai răspuns corect la <strong>{numarCorecte}</strong> din{' '}
-              <strong>{results.length}</strong> întrebări.
-            </p>
+            <h2>{scorMediu >= 70 ? '🎉 Felicitări!' : scorMediu >= 40 ? '📚 Mai exersează!' : '💪 Nu te descuraja!'}</h2>
+            <p className="score-summary">Ai răspuns corect la <strong>{numarCorecte}</strong> din <strong>{results.length}</strong> întrebări.</p>
           </div>
 
-          {/* Lista detaliată */}
           <div className="results-list">
             {results.map((r, i) => (
-              <div
-                key={i}
-                className={`result-card ${r.status === 'CORECT' ? 'result-correct' : 'result-wrong'}`}
-              >
+              <div key={i} className={`result-card ${r.status === 'CORECT' ? 'result-correct' : 'result-wrong'}`}>
                 <div className="result-header">
                   <span className="result-index">#{i + 1}</span>
                   <span className={`result-badge ${r.status === 'CORECT' ? 'badge-correct' : 'badge-wrong'}`}>
                     {r.status === 'CORECT' ? '✓ Corect' : '✗ Incorect'} — {r.scor}%
                   </span>
                 </div>
-
-                <p className="result-question">
-                  <strong>Întrebare:</strong> {r.card.intrebare}
-                </p>
-
+                <p className="result-question"><strong>Întrebare:</strong> {r.card.intrebare}</p>
                 <div className="result-answers">
                   <div className="answer-box your-answer">
                     <span className="answer-box-label">Răspunsul tău</span>
@@ -293,9 +309,7 @@ function App() {
             ))}
           </div>
 
-          <button className="btn-primary btn-restart" onClick={handleRestart}>
-            🔄 Încearcă cu alt PDF
-          </button>
+          <button className="btn-primary btn-restart" onClick={handleRestart}>🔄 Încearcă cu alte PDF-uri</button>
         </section>
       )}
     </div>
