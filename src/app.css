@@ -27,11 +27,12 @@ body {
   line-height: 1.6;
 }
 
-/* ─── CONTAINER ───────────────────────────────────────────── */
+/* ─── CONTAINER WITH SIDEBAR ───────────────────────────────── */
 .app-container {
-  max-width: 720px;
-  margin: 0 auto;
+  margin-left: 280px;
+  max-width: calc(100% - 280px);
   padding: 32px 20px 80px;
+  min-height: 100vh;
 }
 
 /* ─── HEADER ──────────────────────────────────────────────── */
@@ -561,4 +562,367 @@ body {
   font-size: 0.9rem;
   color: var(--text);
   line-height: 1.4;
+}
+
+/* ─── RESPONSIVE DESIGN ───────────────────────────────────── */
+@media (max-width: 1024px) {
+  .app-container {
+    margin-left: 240px;
+    max-width: calc(100% - 240px);
+  }
+}
+
+@media (max-width: 768px) {
+  .app-container {
+    margin-left: 0;
+    max-width: 100%;
+    padding: 32px 16px 80px;
+  }
+
+  .sidebar {
+    width: 200px !important;
+  }
+
+  .logo {
+    font-size: 2.2rem;
+  }
+
+  .auth-form {
+    padding: 30px 20px;
+  }
+
+  .flashcard {
+    padding: 20px;
+  }
+
+  .result-answers {
+    grid-template-columns: 1fr;
+  }
+
+  .nav-buttons {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-container {
+    padding: 20px 12px 60px;
+  }
+
+  .app-header {
+    margin-bottom: 30px;
+  }
+
+  .logo {
+    font-size: 1.8rem;
+  }
+
+  .brain {
+    font-size: 1.4rem;
+  }
+
+  .auth-form {
+    padding: 20px 16px;
+    max-width: 100%;
+  }
+
+  .flashcard {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .card-question p {
+    font-size: 1rem;
+  }
+
+  .answer-input {
+    font-size: 0.9rem;
+    padding: 12px;
+  }
+
+  .score-circle {
+    width: 100px;
+    height: 100px;
+  }
+
+  .score-number {
+    font-size: 2rem;
+  }
+
+  .result-card {
+    padding: 16px;
+  }
+
+  .nav-buttons {
+    gap: 8px;
+  }
+
+  .btn-primary,
+  .btn-secondary,
+  .btn-submit {
+    padding: 12px 16px;
+    font-size: 0.9rem;
+  }
+}
+
+/* ─── SIDEBAR STYLING ─────────────────────────────────────── */
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  width: 280px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 4px 0 15px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  padding-top: 0;
+}
+
+.sidebar-header {
+  padding: 25px 20px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: white;
+  letter-spacing: 0.5px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  padding: 15px 20px;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  gap: 12px;
+}
+
+.user-avatar {
+  font-size: 1.8rem;
+  min-width: 40px;
+  text-align: center;
+}
+
+.user-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-name {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.user-email {
+  margin: 2px 0 0 0;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sessions-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 15px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sessions-label {
+  margin: 0 20px 10px 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sessions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 10px;
+}
+
+.session-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 15px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: left;
+  font-size: 0.95rem;
+  font-weight: 500;
+  margin: 0 10px;
+  width: calc(100% - 20px);
+}
+
+.session-item:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateX(4px);
+}
+
+.session-item.active {
+  background: rgba(255, 255, 255, 0.25);
+  border-left: 3px solid #ffd700;
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+  font-weight: 600;
+}
+
+.session-icon {
+  font-size: 1.1rem;
+  min-width: 20px;
+}
+
+.session-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.no-sessions {
+  padding: 20px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.btn-new-session {
+  margin: 10px 20px;
+  padding: 10px 15px;
+  background: rgba(255, 255, 255, 0.25);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-new-session:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.35);
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.btn-new-session:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.new-session-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 20px;
+}
+
+.session-input {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+}
+
+.session-input:focus {
+  outline: none;
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+}
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-confirm,
+.btn-cancel {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-confirm {
+  background: #4ade80;
+  color: white;
+}
+
+.btn-confirm:hover {
+  background: #22c55e;
+}
+
+.btn-cancel {
+  background: #ef4444;
+  color: white;
+}
+
+.btn-cancel:hover {
+  background: #dc2626;
+}
+
+.sidebar-footer {
+  padding: 15px 20px;
+  border-top: 2px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.btn-logout {
+  width: 100%;
+  padding: 12px;
+  background: rgba(239, 68, 68, 0.3);
+  border: 2px solid rgba(239, 68, 68, 0.5);
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-logout:hover {
+  background: rgba(239, 68, 68, 0.5);
+  border-color: rgba(239, 68, 68, 0.7);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.sessions-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sessions-container::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.sessions-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.sessions-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }

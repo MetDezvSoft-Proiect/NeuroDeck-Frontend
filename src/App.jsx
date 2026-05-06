@@ -1,20 +1,24 @@
-import { useState } from 'react';
-import { generateFlashcards, evaluateAnswer, loginUser, registerUser } from './services/api';
+import { useState, useEffect } from 'react';
+import { generateFlashcards, evaluateAnswer, loginUser, registerUser, createSession, getUserSessions, getSessionDetail } from './services/api';
 import Dropzone from './components/Dropzone';
+import SidebarMenu from './components/SidebarMenu';
 import './App.css';
 
 function App() {
   const [phase, setPhase] = useState('login'); 
   
-  // Stări pentru Autentificare (Autentificare reală)
+  // Autentificare
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [user, setUser] = useState(null);
 
-  // Stări pentru Documente (Acum e un Array de fișiere)
+  // Sesiuni
+  const [sessions, setSessions] = useState([]);
+  const [currentSession, setCurrentSession] = useState(null);
+
+  // Documente și Flashcards
   const [files, setFiles] = useState([]);
-  
   const [flashcards, setFlashcards] = useState([]);
   const [answers, setAnswers] = useState({});
   const [results, setResults] = useState([]);
@@ -22,18 +26,20 @@ function App() {
   const [loadingMsg, setLoadingMsg] = useState('');
   const [currentCard, setCurrentCard] = useState(0);
 
-  // Setări Modificate
+  // Setări
   const [numarIntrebari, setNumarIntrebari] = useState(5);
   const [severitate, setSeveritate] = useState(2);
 
-  // ─── LOGIN & REGISTER (CONECTAT LA BAZA DE DATE) ───
+  // ─── AUTENTIFICARE ───
   const handleAuth = async (e) => {
     e.preventDefault();
     try {
       if (isLoginMode) {
         const data = await loginUser(email, password);
         setUser(data);
-        setPhase('upload'); 
+        // Încarcă sesiunile utilizatorului
+        await loadUserSessions(data.user_id);
+        setPhase('session-select');
       } else {
         await registerUser(email, password);
         alert("Cont creat cu succes! Acum te poți autentifica.");
@@ -45,13 +51,80 @@ function App() {
     }
   };
 
-  // ─── GENERARE FLASHCARDS MULTIPLE ───
+  // ─── LOAD USER SESSIONS ───
+  const loadUserSessions = async (userId) => {
+    try {
+      const data = await getUserSessions(userId);
+      setSessions(data.sessions || []);
+    } catch (err) {
+      console.error('Eroare la încărcarea sesiunilor:', err);
+    }
+  };
+
+  // ─── CREATE NEW SESSION ───
+  const handleCreateSession = async (title) => {
+    if (!user) return;
+    try {
+      setLoading(true);
+      const newSession = await createSession(title, user.user_id);
+      setSessions([...sessions, newSession]);
+      setCurrentSession(newSession);
+      setPhase('upload');
+    } catch (err) {
+      alert(`Eroare: ${err.response?.data?.detail || err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ─── SELECT SESSION ───
+  const handleSelectSession = async (session) => {
+    try {
+      setLoading(true);
+      const sessionDetail = await getSessionDetail(session.id);
+      setCurrentSession(session);
+      // Dacă sesiunea are flashcards salvate, le putem încărca direct
+      if (sessionDetail.flashcards && sessionDetail.flashcards.length > 0) {
+        const flashcardsFormatted = sessionDetail.flashcards.map(fc => ({
+          id: fc.id,
+          intrebare: fc.question,
+          raspuns: fc.correct_answer
+        }));
+        setFlashcards(flashcardsFormatted);
+        setAnswers({});
+        setCurrentCard(0);
+        setPhase('study');
+      } else {
+        setPhase('upload');
+      }
+    } catch (err) {
+      alert(`Eroare: ${err.response?.data?.detail || err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ─── LOGOUT ───
+  const handleLogout = () => {
+    setUser(null);
+    setPhase('login');
+    setEmail('');
+    setPassword('');
+    setSessions([]);
+    setCurrentSession(null);
+    setFlashcards([]);
+    setAnswers({});
+    setResults([]);
+    setFiles([]);
+  };
+
+  // ─── GENERARE FLASHCARDS ───
   const handleGenerate = async () => {
-    if (files.length === 0) return;
+    if (files.length === 0 || !currentSession || !user) return;
     setLoading(true);
     setLoadingMsg('AI-ul citește PDF-urile...');
     try {
-      const data = await generateFlashcards(files, numarIntrebari);
+      const data = await generateFlashcards(files, numarIntrebari, currentSession.id, user.user_id);
       const cards = data.flashcards || [];
       if (cards.length === 0) {
         alert('Nu s-au putut genera flashcards.');
@@ -69,7 +142,6 @@ function App() {
     }
   };
 
-  // Eliminare un singur fișier din selecție
   const removeFile = (indexToRemove) => {
     setFiles((prev) => prev.filter((_, idx) => idx !== indexToRemove));
   };
@@ -120,7 +192,7 @@ function App() {
 
   const handleRestart = () => {
     setPhase('upload');
-    setFiles([]); // Golim array-ul de fișiere
+    setFiles([]);
     setFlashcards([]);
     setAnswers({});
     setResults([]);
@@ -129,6 +201,19 @@ function App() {
 
   return (
     <div className="app-container">
+      {/* Sidebar */}
+      {user && phase !== 'login' && (
+        <SidebarMenu
+          user={user}
+          sessions={sessions}
+          currentSession={currentSession}
+          onSessionSelect={handleSelectSession}
+          onCreateSession={handleCreateSession}
+          onLogout={handleLogout}
+          loading={loading}
+        />
+      )}
+
       <header className="app-header">
         <h1 className="logo">Neuro<span>Deck</span> <span className="brain">🧠</span></h1>
         {user ? <p className="tagline">Salutare, {user.email}!</p> : <p className="tagline">Învață mai smart cu AI</p>}
@@ -166,9 +251,28 @@ function App() {
         </section>
       )}
 
-      {phase === 'upload' && (
+      {phase === 'session-select' && (
         <section className="phase-upload">
-          {/* Trimitem și primim un ARRAY de documente */}
+          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+            <h2 style={{ marginBottom: '20px' }}>Bine ai venit! 👋</h2>
+            <p style={{ marginBottom: '30px', color: 'var(--text-muted)' }}>
+              Selectează o sesiune existentă din stânga sau creează una nouă pentru a începe să studiezi.
+            </p>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                ✨ Sugestie: Creează sesiuni pentru fiecare materie pe care vrei să o studiezi
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {phase === 'upload' && currentSession && (
+        <section className="phase-upload">
+          <h2 style={{ marginBottom: '20px', textAlign: 'center' }}>
+            📚 Sesiune: <span style={{ color: 'var(--accent)' }}>{currentSession.title}</span>
+          </h2>
+
           <Dropzone onFilesSelect={setFiles} files={files} />
 
           <div className="settings-panel">
@@ -195,7 +299,6 @@ function App() {
 
           {files.length > 0 && (
             <div className="file-selected">
-              {/* Afișăm Toate documentele cu buton de stergere individual */}
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
                   {files.map((f, idx) => (
                       <span key={idx} className="file-name" style={{display: 'flex', alignItems: 'center'}}>
@@ -217,7 +320,7 @@ function App() {
         </section>
       )}
 
-      {phase === 'study' && (
+      {phase === 'study' && currentSession && (
         <section className="phase-study">
           <div className="study-header">
             <span className="progress-label">
@@ -309,7 +412,7 @@ function App() {
             ))}
           </div>
 
-          <button className="btn-primary btn-restart" onClick={handleRestart}>🔄 Încearcă cu alte PDF-uri</button>
+          <button className="btn-primary btn-restart" onClick={handleRestart}>🔄 Revino la upload</button>
         </section>
       )}
     </div>
