@@ -16,6 +16,7 @@ function App() {
   // Sesiuni
   const [sessions, setSessions] = useState([]);
   const [currentSession, setCurrentSession] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false); // meniu lateral pe mobil
 
   // Documente și Flashcards
   const [files, setFiles] = useState([]);
@@ -69,6 +70,7 @@ function App() {
       const newSession = await createSession(title, user.user_id);
       setSessions([...sessions, newSession]);
       setCurrentSession(newSession);
+      setSidebarOpen(false); // inchide meniul pe mobil
       setPhase('upload');
     } catch (err) {
       alert(`Eroare: ${err.response?.data?.detail || err.message}`);
@@ -79,6 +81,7 @@ function App() {
 
   // ─── SELECT SESSION ───
   const handleSelectSession = async (session) => {
+    setSidebarOpen(false); // inchide meniul pe mobil dupa selectare
     try {
       setLoading(true);
       const sessionDetail = await getSessionDetail(session.id);
@@ -245,6 +248,17 @@ function App() {
 
   return (
     <div className="app-container">
+      {/* Buton hamburger — vizibil doar pe mobil */}
+      {user && phase !== 'login' && (
+        <button
+          className="menu-toggle"
+          onClick={() => setSidebarOpen((o) => !o)}
+          aria-label="Deschide/închide meniul"
+        >
+          ☰
+        </button>
+      )}
+
       {/* Sidebar */}
       {user && phase !== 'login' && (
         <SidebarMenu
@@ -257,6 +271,8 @@ function App() {
           onDeleteSession={handleDeleteSession}
           onLogout={handleLogout}
           loading={loading}
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
         />
       )}
 

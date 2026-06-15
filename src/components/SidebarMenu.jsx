@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-function SidebarMenu({ user, sessions, currentSession, onSessionSelect, onCreateSession, onRenameSession, onDeleteSession, onLogout, loading }) {
+function SidebarMenu({ user, sessions, currentSession, onSessionSelect, onCreateSession, onRenameSession, onDeleteSession, onLogout, loading, isOpen = false, onClose }) {
   const [showNewSessionForm, setShowNewSessionForm] = useState(false);
   const [newSessionTitle, setNewSessionTitle] = useState('');
 
@@ -14,7 +14,11 @@ function SidebarMenu({ user, sessions, currentSession, onSessionSelect, onCreate
   };
 
   return (
-    <aside className="sidebar">
+    <>
+      {/* Overlay pentru mobil (inchide meniul la click in afara) */}
+      {isOpen && <div className="sidebar-overlay" onClick={onClose} />}
+
+      <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
       <div className="sidebar-header">
         <h2 className="sidebar-title">📚 Sesiuni</h2>
       </div>
@@ -121,6 +125,7 @@ function SidebarMenu({ user, sessions, currentSession, onSessionSelect, onCreate
         </button>
       </div>
     </aside>
+    </>
   );
 }
 
