@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { generateFlashcards, evaluateAnswer, loginUser, registerUser, createSession, getUserSessions, getSessionDetail } from './services/api';
+import { generateFlashcards, evaluateAnswer, loginUser, registerUser, createSession, getUserSessions, getSessionDetail, updateSession, deleteSession } from './services/api';
 import Dropzone from './components/Dropzone';
 import SidebarMenu from './components/SidebarMenu';
 import './App.css';
@@ -99,6 +99,50 @@ function App() {
       }
     } catch (err) {
       alert(`Eroare: ${err.response?.data?.detail || err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ─── RENAME SESSION (#2) ───
+  const handleRenameSession = async (session) => {
+    const nouTitlu = window.prompt('Noul nume al sesiunii:', session.title);
+    if (nouTitlu === null) return; // Anulat
+    const titluCurat = nouTitlu.trim();
+    if (!titluCurat || titluCurat === session.title) return;
+    try {
+      setLoading(true);
+      await updateSession(session.id, titluCurat);
+      // Actualizează lista local
+      setSessions((prev) => prev.map((s) => (s.id === session.id ? { ...s, title: titluCurat } : s)));
+      if (currentSession?.id === session.id) {
+        setCurrentSession((prev) => ({ ...prev, title: titluCurat }));
+      }
+    } catch (err) {
+      alert(`Eroare la redenumire: ${err.response?.data?.detail || err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ─── DELETE SESSION (#1) ───
+  const handleDeleteSession = async (session) => {
+    const ok = window.confirm(`Sigur vrei să ștergi sesiunea „${session.title}"? Această acțiune nu poate fi anulată.`);
+    if (!ok) return;
+    try {
+      setLoading(true);
+      await deleteSession(session.id);
+      setSessions((prev) => prev.filter((s) => s.id !== session.id));
+      // Dacă sesiunea ștearsă era cea curentă, resetează vizualizarea
+      if (currentSession?.id === session.id) {
+        setCurrentSession(null);
+        setFlashcards([]);
+        setAnswers({});
+        setResults([]);
+        setPhase('session-select');
+      }
+    } catch (err) {
+      alert(`Eroare la ștergere: ${err.response?.data?.detail || err.message}`);
     } finally {
       setLoading(false);
     }
@@ -209,6 +253,8 @@ function App() {
           currentSession={currentSession}
           onSessionSelect={handleSelectSession}
           onCreateSession={handleCreateSession}
+          onRenameSession={handleRenameSession}
+          onDeleteSession={handleDeleteSession}
           onLogout={handleLogout}
           loading={loading}
         />

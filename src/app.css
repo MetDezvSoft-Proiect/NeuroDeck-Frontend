@@ -758,19 +758,14 @@ body {
 .session-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 15px;
   background: rgba(255, 255, 255, 0.1);
   border: none;
   border-radius: 8px;
   color: white;
-  cursor: pointer;
   transition: all 0.3s ease;
-  text-align: left;
-  font-size: 0.95rem;
-  font-weight: 500;
   margin: 0 10px;
   width: calc(100% - 20px);
+  overflow: hidden;
 }
 
 .session-item:hover {
@@ -782,6 +777,27 @@ body {
   background: rgba(255, 255, 255, 0.25);
   border-left: 3px solid #ffd700;
   box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+/* Zona principală clicabilă (selectare sesiune) */
+.session-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 15px;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.95rem;
+  font-weight: 500;
+  font-family: inherit;
+}
+
+.session-item.active .session-main {
   font-weight: 600;
 }
 
@@ -795,6 +811,46 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Butoane de acțiune (redenumire / ștergere) */
+.session-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 6px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.session-item:hover .session-actions,
+.session-item.active .session-actions {
+  opacity: 1;
+}
+
+.session-action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 4px 6px;
+  border-radius: 6px;
+  line-height: 1;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.session-action-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(1.15);
+}
+
+.session-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.session-action-delete:hover:not(:disabled) {
+  background: rgba(255, 80, 80, 0.35);
 }
 
 .no-sessions {
