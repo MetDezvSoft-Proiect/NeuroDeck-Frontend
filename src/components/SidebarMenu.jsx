@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-function SidebarMenu({ user, sessions, currentSession, onSessionSelect, onCreateSession, onLogout, loading }) {
+function SidebarMenu({ user, sessions, currentSession, onSessionSelect, onCreateSession, onRenameSession, onDeleteSession, onLogout, loading }) {
   const [showNewSessionForm, setShowNewSessionForm] = useState(false);
   const [newSessionTitle, setNewSessionTitle] = useState('');
 
@@ -37,15 +37,40 @@ function SidebarMenu({ user, sessions, currentSession, onSessionSelect, onCreate
         {sessions && sessions.length > 0 ? (
           <div className="sessions-list">
             {sessions.map((session) => (
-              <button
+              <div
                 key={session.id}
                 className={`session-item ${currentSession?.id === session.id ? 'active' : ''}`}
-                onClick={() => onSessionSelect(session)}
-                title={session.title}
               >
-                <span className="session-icon">📖</span>
-                <span className="session-name">{session.title}</span>
-              </button>
+                <button
+                  type="button"
+                  className="session-main"
+                  onClick={() => onSessionSelect(session)}
+                  title={session.title}
+                >
+                  <span className="session-icon">📖</span>
+                  <span className="session-name">{session.title}</span>
+                </button>
+                <div className="session-actions">
+                  <button
+                    type="button"
+                    className="session-action-btn"
+                    onClick={() => onRenameSession?.(session)}
+                    disabled={loading}
+                    title="Redenumește sesiunea"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    type="button"
+                    className="session-action-btn session-action-delete"
+                    onClick={() => onDeleteSession?.(session)}
+                    disabled={loading}
+                    title="Șterge sesiunea"
+                  >
+                    🗑️
+                  </button>
+                </div>
+              </div>
             ))}
           </div>
         ) : (
