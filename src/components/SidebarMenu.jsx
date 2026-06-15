@@ -32,7 +32,7 @@ function SidebarMenu({ user, sessions, currentSession, onSessionSelect, onCreate
 
       {/* Sessions List */}
       <div className="sessions-container">
-        <h3 className="sessions-label">Sesiile tale</h3>
+        <h3 className="sessions-label">Sesiunile tale</h3>
         
         {sessions && sessions.length > 0 ? (
           <div className="sessions-list">
