@@ -576,11 +576,28 @@ body {
   .app-container {
     margin-left: 0;
     max-width: 100%;
-    padding: 32px 16px 80px;
+    padding: 72px 16px 80px;
   }
 
+  /* Sidebar off-canvas: ascuns implicit, gliseaza la deschidere */
   .sidebar {
-    width: 200px !important;
+    width: 260px;
+    transform: translateX(-100%);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  /* Afiseaza butonul hamburger si overlay-ul pe mobil */
+  .menu-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .sidebar-overlay {
+    display: block;
   }
 
   .logo {
@@ -679,6 +696,34 @@ body {
   box-shadow: 4px 0 15px rgba(0, 0, 0, 0.2);
   z-index: 1000;
   padding-top: 0;
+  transition: transform 0.3s ease;
+}
+
+/* Buton hamburger — ascuns pe desktop, vizibil pe mobil */
+.menu-toggle {
+  display: none;
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 1100;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  width: 44px;
+  height: 44px;
+  font-size: 1.4rem;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+
+/* Overlay semi-transparent sub sidebar pe mobil */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
 }
 
 .sidebar-header {
