@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { generateFlashcards, evaluateAnswer, loginUser, registerUser, createSession, getUserSessions, getSessionDetail, updateSession, deleteSession } from './services/api';
 import Dropzone from './components/Dropzone';
 import SidebarMenu from './components/SidebarMenu';
 import './App.css';
 
 function App() {
-  const [phase, setPhase] = useState('login'); 
-  
+  const [phase, setPhase] = useState('login');
+
   // Autentificare
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [email, setEmail] = useState('');
@@ -16,7 +16,8 @@ function App() {
   // Sesiuni
   const [sessions, setSessions] = useState([]);
   const [currentSession, setCurrentSession] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false); // meniu lateral pe mobil
+  const [sessionFlashcardCounts, setSessionFlashcardCounts] = useState({});
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Documente și Flashcards
   const [files, setFiles] = useState([]);
@@ -27,6 +28,9 @@ function App() {
   const [loadingMsg, setLoadingMsg] = useState('');
   const [currentCard, setCurrentCard] = useState(0);
 
+  // Mod revizuire
+  const [isFlipped, setIsFlipped] = useState(false);
+
   // Setări
   const [numarIntrebari, setNumarIntrebari] = useState(5);
   const [severitate, setSeveritate] = useState(2);
@@ -34,14 +38,17 @@ function App() {
   // ─── AUTENTIFICARE ───
   const handleAuth = async (e) => {
     e.preventDefault();
+    setLoading(true);
     try {
       if (isLoginMode) {
+        setLoadingMsg('Se verifică datele...');
         const data = await loginUser(email, password);
         setUser(data);
-        // Încarcă sesiunile utilizatorului
+        setLoadingMsg('Se încarcă sesiunile...');
         await loadUserSessions(data.user_id);
         setPhase('session-select');
       } else {
+        setLoadingMsg('Se creează contul...');
         await registerUser(email, password);
         alert("Cont creat cu succes! Acum te poți autentifica.");
         setIsLoginMode(true);
@@ -49,6 +56,9 @@ function App() {
       }
     } catch (err) {
       alert(`Eroare: ${err.response?.data?.detail || err.message}`);
+    } finally {
+      setLoading(false);
+      setLoadingMsg('');
     }
   };
 
@@ -70,7 +80,7 @@ function App() {
       const newSession = await createSession(title, user.user_id);
       setSessions([...sessions, newSession]);
       setCurrentSession(newSession);
-      setSidebarOpen(false); // inchide meniul pe mobil
+      setSidebarOpen(false);
       setPhase('upload');
     } catch (err) {
       alert(`Eroare: ${err.response?.data?.detail || err.message}`);
@@ -81,12 +91,11 @@ function App() {
 
   // ─── SELECT SESSION ───
   const handleSelectSession = async (session) => {
-    setSidebarOpen(false); // inchide meniul pe mobil dupa selectare
+    setSidebarOpen(false);
     try {
       setLoading(true);
       const sessionDetail = await getSessionDetail(session.id);
       setCurrentSession(session);
-      // Dacă sesiunea are flashcards salvate, le putem încărca direct
       if (sessionDetail.flashcards && sessionDetail.flashcards.length > 0) {
         const flashcardsFormatted = sessionDetail.flashcards.map(fc => ({
           id: fc.id,
@@ -94,9 +103,11 @@ function App() {
           raspuns: fc.correct_answer
         }));
         setFlashcards(flashcardsFormatted);
+        setSessionFlashcardCounts(prev => ({ ...prev, [session.id]: flashcardsFormatted.length }));
         setAnswers({});
         setCurrentCard(0);
-        setPhase('study');
+        setIsFlipped(false);
+        setPhase('review');
       } else {
         setPhase('upload');
       }
@@ -107,16 +118,15 @@ function App() {
     }
   };
 
-  // ─── RENAME SESSION (#2) ───
+  // ─── RENAME SESSION ───
   const handleRenameSession = async (session) => {
     const nouTitlu = window.prompt('Noul nume al sesiunii:', session.title);
-    if (nouTitlu === null) return; // Anulat
+    if (nouTitlu === null) return;
     const titluCurat = nouTitlu.trim();
     if (!titluCurat || titluCurat === session.title) return;
     try {
       setLoading(true);
       await updateSession(session.id, titluCurat);
-      // Actualizează lista local
       setSessions((prev) => prev.map((s) => (s.id === session.id ? { ...s, title: titluCurat } : s)));
       if (currentSession?.id === session.id) {
         setCurrentSession((prev) => ({ ...prev, title: titluCurat }));
@@ -128,7 +138,7 @@ function App() {
     }
   };
 
-  // ─── DELETE SESSION (#1) ───
+  // ─── DELETE SESSION ───
   const handleDeleteSession = async (session) => {
     const ok = window.confirm(`Sigur vrei să ștergi sesiunea „${session.title}"? Această acțiune nu poate fi anulată.`);
     if (!ok) return;
@@ -136,7 +146,7 @@ function App() {
       setLoading(true);
       await deleteSession(session.id);
       setSessions((prev) => prev.filter((s) => s.id !== session.id));
-      // Dacă sesiunea ștearsă era cea curentă, resetează vizualizarea
+      setSessionFlashcardCounts(prev => { const n = { ...prev }; delete n[session.id]; return n; });
       if (currentSession?.id === session.id) {
         setCurrentSession(null);
         setFlashcards([]);
@@ -163,6 +173,7 @@ function App() {
     setAnswers({});
     setResults([]);
     setFiles([]);
+    setSessionFlashcardCounts({});
   };
 
   // ─── GENERARE FLASHCARDS ───
@@ -178,11 +189,24 @@ function App() {
         return;
       }
       setFlashcards(cards);
+      setSessionFlashcardCounts(prev => ({ ...prev, [currentSession.id]: cards.length }));
       setAnswers({});
       setCurrentCard(0);
+      setIsFlipped(false);
       setPhase('study');
     } catch (err) {
-      alert(`Eroare: ${err.response?.data?.detail || err.message}`);
+      const msg = err.response?.data?.detail || err.message;
+      if (msg && msg.toLowerCase().includes('ollama')) {
+        alert(
+          'Ollama nu este pornit!\n\n' +
+          'Pornește Ollama cu comanda:\n' +
+          '  ollama serve\n\n' +
+          'Și asigură-te că modelul llama3 este descărcat:\n' +
+          '  ollama pull llama3'
+        );
+      } else {
+        alert(`Eroare: ${msg}`);
+      }
     } finally {
       setLoading(false);
       setLoadingMsg('');
@@ -244,11 +268,24 @@ function App() {
     setAnswers({});
     setResults([]);
     setCurrentCard(0);
+    setIsFlipped(false);
+  };
+
+  const handleStartReview = () => {
+    setCurrentCard(0);
+    setIsFlipped(false);
+    setPhase('review');
+  };
+
+  const handleStartStudy = () => {
+    setCurrentCard(0);
+    setAnswers({});
+    setIsFlipped(false);
+    setPhase('study');
   };
 
   return (
     <div className="app-container">
-      {/* Buton hamburger — vizibil doar pe mobil */}
       {user && phase !== 'login' && (
         <button
           className="menu-toggle"
@@ -259,12 +296,12 @@ function App() {
         </button>
       )}
 
-      {/* Sidebar */}
       {user && phase !== 'login' && (
         <SidebarMenu
           user={user}
           sessions={sessions}
           currentSession={currentSession}
+          sessionFlashcardCounts={sessionFlashcardCounts}
           onSessionSelect={handleSelectSession}
           onCreateSession={handleCreateSession}
           onRenameSession={handleRenameSession}
@@ -281,6 +318,7 @@ function App() {
         {user ? <p className="tagline">Salutare, {user.email}!</p> : <p className="tagline">Învață mai smart cu AI</p>}
       </header>
 
+      {/* ─── LOGIN ─── */}
       {phase === 'login' && (
         <section className="phase-login">
           <form className="auth-form" onSubmit={handleAuth}>
@@ -288,24 +326,28 @@ function App() {
             <p className="auth-subtitle">
               {isLoginMode ? "Conectează-te pentru a-ți salva progresul" : "Introdu datele pentru a crea un cont nou"}
             </p>
-            
-            <input 
-              type="email" placeholder="Email" required className="auth-input" 
-              value={email} onChange={e => setEmail(e.target.value)}
+
+            <input
+              type="email" placeholder="Email" required className="auth-input"
+              value={email} onChange={e => setEmail(e.target.value)} disabled={loading}
             />
-            <input 
-              type="password" placeholder="Parolă" required className="auth-input" 
-              value={password} onChange={e => setPassword(e.target.value)}
+            <input
+              type="password" placeholder="Parolă" required className="auth-input"
+              value={password} onChange={e => setPassword(e.target.value)} disabled={loading}
             />
-            
-            <button type="submit" className="btn-primary">
-              {isLoginMode ? "Intră în cont" : "Înregistrează-mă"}
+
+            <button type="submit" className="btn-primary" disabled={loading}>
+              {loading
+                ? <span className="btn-loading"><span className="spinner" /> {loadingMsg || 'Se conectează...'}</span>
+                : (isLoginMode ? "Intră în cont" : "Înregistrează-mă")
+              }
             </button>
 
-            <button 
-              type="button" 
-              onClick={() => setIsLoginMode(!isLoginMode)} 
-              style={{background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', marginTop: '10px'}}
+            <button
+              type="button"
+              onClick={() => setIsLoginMode(!isLoginMode)}
+              disabled={loading}
+              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', marginTop: '10px' }}
             >
               {isLoginMode ? "Nu ai cont? Creează unul" : "Ai deja cont? Autentifică-te"}
             </button>
@@ -313,6 +355,7 @@ function App() {
         </section>
       )}
 
+      {/* ─── SESSION SELECT ─── */}
       {phase === 'session-select' && (
         <section className="phase-upload">
           <div style={{ textAlign: 'center', padding: '40px 20px' }}>
@@ -320,32 +363,40 @@ function App() {
             <p style={{ marginBottom: '30px', color: 'var(--text-muted)' }}>
               Selectează o sesiune existentă din stânga sau creează una nouă pentru a începe să studiezi.
             </p>
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                ✨ Sugestie: Creează sesiuni pentru fiecare materie pe care vrei să o studiezi
-              </p>
-            </div>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+              ✨ Sugestie: Creează sesiuni pentru fiecare materie pe care vrei să o studiezi
+            </p>
           </div>
         </section>
       )}
 
+      {/* ─── UPLOAD ─── */}
       {phase === 'upload' && currentSession && (
         <section className="phase-upload">
           <h2 style={{ marginBottom: '20px', textAlign: 'center' }}>
             📚 Sesiune: <span style={{ color: 'var(--accent)' }}>{currentSession.title}</span>
           </h2>
 
+          {/* Buton revizuire dacă sesiunea are flashcarduri deja */}
+          {sessionFlashcardCounts[currentSession.id] > 0 && (
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <button className="btn-secondary" onClick={handleStartReview}>
+                👁 Revizuiește {sessionFlashcardCounts[currentSession.id]} flashcarduri existente
+              </button>
+            </div>
+          )}
+
           <Dropzone onFilesSelect={setFiles} files={files} />
 
           <div className="settings-panel">
             <div className="setting-group">
               <label>Număr întrebări generate:</label>
-              <input 
-                type="number" min="1" max="50" 
+              <input
+                type="number" min="1" max="50"
                 className="auth-input"
                 style={{ width: "120px", padding: "10px" }}
-                value={numarIntrebari} 
-                onChange={(e) => setNumarIntrebari(parseInt(e.target.value) || 1)} 
+                value={numarIntrebari}
+                onChange={(e) => setNumarIntrebari(parseInt(e.target.value) || 1)}
               />
             </div>
 
@@ -362,32 +413,109 @@ function App() {
           {files.length > 0 && (
             <div className="file-selected">
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                  {files.map((f, idx) => (
-                      <span key={idx} className="file-name" style={{display: 'flex', alignItems: 'center'}}>
-                          📎 {f.name} 
-                          <span 
-                              style={{cursor: 'pointer', marginLeft: '10px', color: 'var(--red)', fontWeight: 'bold'}} 
-                              onClick={() => removeFile(idx)}
-                          >✕</span>
-                      </span>
-                  ))}
+                {files.map((f, idx) => (
+                  <span key={idx} className="file-name" style={{ display: 'flex', alignItems: 'center' }}>
+                    📎 {f.name}
+                    <span
+                      style={{ cursor: 'pointer', marginLeft: '10px', color: 'var(--red)', fontWeight: 'bold' }}
+                      onClick={() => removeFile(idx)}
+                    >✕</span>
+                  </span>
+                ))}
               </div>
-              <button className="btn-primary" onClick={handleGenerate} disabled={loading} style={{marginTop: '10px'}}>
-                {loading ? (
-                  <span className="btn-loading"><span className="spinner" /> {loadingMsg}</span>
-                ) : ('⚡ Generează Flashcards din PDF-uri')}
+              <button className="btn-primary" onClick={handleGenerate} disabled={loading} style={{ marginTop: '10px' }}>
+                {loading
+                  ? <span className="btn-loading"><span className="spinner" /> {loadingMsg}</span>
+                  : '⚡ Generează Flashcards din PDF-uri'
+                }
               </button>
             </div>
           )}
         </section>
       )}
 
+      {/* ─── REVIEW (MOD REVIZUIRE) ─── */}
+      {phase === 'review' && currentSession && (
+        <section className="phase-study">
+          <div className="study-header">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span className="progress-label">Card {currentCard + 1} din {flashcards.length}</span>
+              <span style={{ fontSize: '0.78rem', color: 'var(--accent)', fontFamily: 'Syne, sans-serif', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Mod Revizuire
+              </span>
+            </div>
+            <div className="progress-bar">
+              <div className="progress-fill" style={{ width: `${((currentCard + 1) / flashcards.length) * 100}%` }} />
+            </div>
+          </div>
+
+          <div
+            className={`flip-card ${isFlipped ? 'flipped' : ''}`}
+            onClick={() => setIsFlipped(f => !f)}
+            title="Click pentru a întoarce cardul"
+          >
+            <div className="flip-card-inner">
+              <div className="flip-card-front flashcard">
+                <span className="card-label">Întrebare</span>
+                <p style={{ fontSize: '1.15rem', fontWeight: 500, lineHeight: 1.5 }}>
+                  {flashcards[currentCard].intrebare}
+                </p>
+                <p className="hint" style={{ textAlign: 'center', marginTop: 'auto', paddingTop: '16px' }}>
+                  Click pentru a vedea răspunsul
+                </p>
+              </div>
+              <div className="flip-card-back flashcard">
+                <span className="card-label" style={{ color: 'var(--green)' }}>Răspuns</span>
+                <p style={{ fontSize: '1.15rem', fontWeight: 500, lineHeight: 1.5 }}>
+                  {flashcards[currentCard].raspuns}
+                </p>
+                <p className="hint" style={{ textAlign: 'center', marginTop: 'auto', paddingTop: '16px' }}>
+                  Click pentru a vedea întrebarea
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="nav-buttons">
+            <button className="btn-secondary" onClick={() => { goPrev(); setIsFlipped(false); }} disabled={currentCard === 0}>
+              ← Anterior
+            </button>
+            <button className="btn-primary" onClick={handleStartStudy}>
+              ✏️ Începe testul
+            </button>
+            {currentCard < flashcards.length - 1
+              ? <button className="btn-primary" onClick={() => { goNext(); setIsFlipped(false); }}>Următor →</button>
+              : <button className="btn-secondary" onClick={() => { setCurrentCard(0); setIsFlipped(false); }}>↩ Reincepe</button>
+            }
+          </div>
+
+          <div className="cards-dots">
+            {flashcards.map((_, i) => (
+              <button
+                key={i}
+                className={`dot ${i === currentCard ? 'active' : ''}`}
+                onClick={() => { setCurrentCard(i); setIsFlipped(false); }}
+                title={`Card ${i + 1}`}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ─── STUDY ─── */}
       {phase === 'study' && currentSession && (
         <section className="phase-study">
           <div className="study-header">
-            <span className="progress-label">
-              Card {currentCard + 1} din {flashcards.length}
-            </span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span className="progress-label">Card {currentCard + 1} din {flashcards.length}</span>
+              <button
+                className="btn-secondary"
+                style={{ fontSize: '0.8rem', padding: '6px 12px' }}
+                onClick={handleStartReview}
+              >
+                👁 Revizuiește
+              </button>
+            </div>
             <div className="progress-bar">
               <div className="progress-fill" style={{ width: `${((currentCard + 1) / flashcards.length) * 100}%` }} />
             </div>
@@ -439,6 +567,7 @@ function App() {
         </section>
       )}
 
+      {/* ─── RESULTS ─── */}
       {phase === 'results' && (
         <section className="phase-results">
           <div className="score-hero">
@@ -474,7 +603,14 @@ function App() {
             ))}
           </div>
 
-          <button className="btn-primary btn-restart" onClick={handleRestart}>🔄 Revino la upload</button>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap', marginTop: '40px' }}>
+            <button className="btn-secondary" onClick={handleStartReview}>
+              👁 Revizuiește flashcardurile
+            </button>
+            <button className="btn-primary btn-restart" style={{ margin: 0 }} onClick={handleRestart}>
+              🔄 Revino la upload
+            </button>
+          </div>
         </section>
       )}
     </div>

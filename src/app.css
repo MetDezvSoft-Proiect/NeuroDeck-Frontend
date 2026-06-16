@@ -564,6 +564,56 @@ body {
   line-height: 1.4;
 }
 
+/* ─── FLIP CARD ───────────────────────────────────────────── */
+.flip-card {
+  perspective: 1200px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.flip-card-inner {
+  display: grid;
+  transform-style: preserve-3d;
+  transition: transform 0.5s ease;
+}
+
+.flip-card.flipped .flip-card-inner {
+  transform: rotateY(180deg);
+}
+
+.flip-card-front,
+.flip-card-back {
+  grid-area: 1 / 1;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.flip-card-back {
+  transform: rotateY(180deg);
+}
+
+.flip-card .flashcard {
+  border-color: var(--accent);
+  transition: border-color 0.3s;
+}
+
+.flip-card.flipped .flip-card-back.flashcard {
+  border-color: var(--green);
+}
+
+/* ─── SESSION CARD COUNT BADGE ────────────────────────────── */
+.session-card-count {
+  background: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  min-width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
 /* ─── RESPONSIVE DESIGN ───────────────────────────────────── */
 @media (max-width: 1024px) {
   .app-container {

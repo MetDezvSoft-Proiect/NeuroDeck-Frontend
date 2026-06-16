@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-function SidebarMenu({ user, sessions, currentSession, onSessionSelect, onCreateSession, onRenameSession, onDeleteSession, onLogout, loading, isOpen = false, onClose }) {
+function SidebarMenu({ user, sessions, currentSession, sessionFlashcardCounts = {}, onSessionSelect, onCreateSession, onRenameSession, onDeleteSession, onLogout, loading, isOpen = false, onClose }) {
   const [showNewSessionForm, setShowNewSessionForm] = useState(false);
   const [newSessionTitle, setNewSessionTitle] = useState('');
 
@@ -53,6 +53,9 @@ function SidebarMenu({ user, sessions, currentSession, onSessionSelect, onCreate
                 >
                   <span className="session-icon">📖</span>
                   <span className="session-name">{session.title}</span>
+                  {sessionFlashcardCounts[session.id] > 0 && (
+                    <span className="session-card-count">{sessionFlashcardCounts[session.id]}</span>
+                  )}
                 </button>
                 <div className="session-actions">
                   <button
